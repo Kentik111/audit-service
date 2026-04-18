@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-calculator-fill"></i> Калькуляторы</h2>
+
+<div class="row">
+    <!-- Калькулятор риска -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Калькулятор риска</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Критичность (1-10)</label>
+                    <input type="range" class="form-range" id="crit" min="1" max="10" value="5" oninput="document.getElementById('critVal').innerText = this.value">
+                    <div class="text-center"><span id="critVal">5</span> / 10</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Вероятность (1-10)</label>
+                    <input type="range" class="form-range" id="prob" min="1" max="10" value="5" oninput="document.getElementById('probVal').innerText = this.value">
+                    <div class="text-center"><span id="probVal">5</span> / 10</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Влияние (1-10)</label>
+                    <input type="range" class="form-range" id="imp" min="1" max="10" value="5" oninput="document.getElementById('impVal').innerText = this.value">
+                    <div class="text-center"><span id="impVal">5</span> / 10</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Компенсирующие меры (0-30)</label>
+                    <input type="range" class="form-range" id="comp" min="0" max="30" value="0" oninput="document.getElementById('compVal').innerText = this.value; calcRisk();">
+                    <div class="text-center"><span id="compVal">0</span> / 30</div>
+                </div>
+                
+                <hr>
+                
+                <div class="text-center p-3 bg-light rounded">
+                    <h4>Результат:</h4>
+                    <h3 id="riskResult">Скор: 55, Уровень: Средний</h3>
+                    <div class="progress mt-2" style="height: 30px;">
+                        <div id="riskProgress" class="progress-bar bg-warning" style="width: 55%;">55%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Калькулятор SLA -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Калькулятор SLA</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Дата обнаружения</label>
+                    <input type="date" class="form-control" id="detectDate" value="2026-04-01">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Уровень критичности</label>
+                    <select class="form-select" id="slaCriticality" onchange="calcSLA()">
+                        <option value="Low">Low (90 дней)</option>
+                        <option value="Medium">Medium (30 дней)</option>
+                        <option value="High">High (14 дней)</option>
+                        <option value="Critical">Critical (7 дней)</option>
+                    </select>
+                </div>
+                
+                <hr>
+                
+                <div class="text-center p-3 bg-light rounded">
+                    <h4>Результат SLA:</h4>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th>Дедлайн:</th>
+                            <td id="deadline">—</td>
+                        </tr>
+                        <tr>
+                            <th>Дней до дедлайна:</th>
+                            <td id="daysLeft">—</td>
+                        </tr>
+                        <tr>
+                            <th>Статус:</th>
+                            <td id="slaStatus">—</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Калькулятор соответствия -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check2-all"></i> Калькулятор соответствия</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Выполнено требований</label>
+                    <input type="number" class="form-control" id="completed" min="0" value="15" oninput="calcCompliance()">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Не выполнено требований</label>
+                    <input type="number" class="form-control" id="notCompleted" min="0" value="5" oninput="calcCompliance()">
+                </div>
+                
+                <hr>
+                
+                <div class="text-center p-3 bg-light rounded">
+                    <h4>Уровень соответствия:</h4>
+                    <h2 id="compliancePercent">75%</h2>
+                    <div class="progress mt-2" style="height: 30px;">
+                        <div id="complianceProgress" class="progress-bar bg-success" style="width: 75%;">75%</div>
+                    </div>
+                    <p class="mt-2 mb-0">Итоговый уровень: <strong id="complianceLevel">Хороший</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Калькулятор риска
+    function calcRisk() {
+        let crit = parseInt(document.getElementById('crit').value);
+        let prob = parseInt(document.getElementById('prob').value);
+        let imp = parseInt(document.getElementById('imp').value);
+        let comp = parseInt(document.getElementById('comp').value);
+        
+        // Формула: (Критичность * 3 + Вероятность * 2 + Влияние * 4) - Компенсация
+        let score = (crit * 3 + prob * 2 + imp * 4) - comp;
+        score = Math.min(100, Math.max(0, score)); // Ограничение 0-100
+        
+        let level = '';
+        let color = '';
+        if (score >= 70) {
+            level = 'Критический';
+            color = 'danger';
+        } else if (score >= 40) {
+            level = 'Высокий';
+            color = 'warning';
+        } else {
+            level = 'Средний';
+            color = 'success';
+        }
+        
+        document.getElementById('riskResult').innerHTML = `Скор: ${score}, Уровень: ${level}`;
+        let progressBar = document.getElementById('riskProgress');
+        progressBar.style.width = score + '%';
+        progressBar.innerText = score + '%';
+        progressBar.className = 'progress-bar bg-' + color;
+    }
+
+    // Калькулятор SLA
+    function calcSLA() {
+        let detectDate = new Date(document.getElementById('detectDate').value);
+        let criticality = document.getElementById('slaCriticality').value;
+        
+        let daysToAdd = 90;
+        if (criticality === 'Medium') daysToAdd = 30;
+        else if (criticality === 'High') daysToAdd = 14;
+        else if (criticality === 'Critical') daysToAdd = 7;
+        
+        let deadline = new Date(detectDate);
+        deadline.setDate(deadline.getDate() + daysToAdd);
+        
+        let today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        let daysLeft = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+        
+        let status = '';
+        let color = '';
+        if (daysLeft < 0) {
+            status = 'Просрочено на ' + Math.abs(daysLeft) + ' дн.';
+            color = 'text-danger fw-bold';
+        } else if (daysLeft <= 3) {
+            status = 'Срочно! Осталось ' + daysLeft + ' дн.';
+            color = 'text-warning fw-bold';
+        } else {
+            status = 'В норме. Осталось ' + daysLeft + ' дн.';
+            color = 'text-success';
+        }
+        
+        document.getElementById('deadline').innerHTML = deadline.toLocaleDateString('ru-RU');
+        document.getElementById('daysLeft').innerHTML = daysLeft;
+        document.getElementById('daysLeft').className = color;
+        document.getElementById('slaStatus').innerHTML = status;
+        document.getElementById('slaStatus').className = color;
+    }
+
+    // Калькулятор соответствия
+    function calcCompliance() {
+        let completed = parseInt(document.getElementById('completed').value) || 0;
+        let notCompleted = parseInt(document.getElementById('notCompleted').value) || 0;
+        
+        let total = completed + notCompleted;
+        if (total === 0) {
+            document.getElementById('compliancePercent').innerText = '0%';
+            return;
+        }
+        
+        let percent = Math.round((completed / total) * 100);
+        let level = '';
+        let color = '';
+        
+        if (percent >= 90) {
+            level = 'Отличный';
+            color = 'success';
+        } else if (percent >= 70) {
+            level = 'Хороший';
+            color = 'success';
+        } else if (percent >= 50) {
+            level = 'Удовлетворительный';
+            color = 'warning';
+        } else {
+            level = 'Неудовлетворительный';
+            color = 'danger';
+        }
+        
+        document.getElementById('compliancePercent').innerText = percent + '%';
+        document.getElementById('complianceLevel').innerText = level;
+        let progressBar = document.getElementById('complianceProgress');
+        progressBar.style.width = percent + '%';
+        progressBar.innerText = percent + '%';
+        progressBar.className = 'progress-bar bg-' + color;
+    }
+
+    // Инициализация при загрузке
+    document.addEventListener('DOMContentLoaded', function() {
+        // Установка сегодняшней даты по умолчанию
+        let today = new Date().toISOString().split('T')[0];
+        document.getElementById('detectDate').value = today;
+        
+        calcRisk();
+        calcSLA();
+        calcCompliance();
+        
+        // Привязка событий к слайдерам
+        document.getElementById('crit').addEventListener('input', calcRisk);
+        document.getElementById('prob').addEventListener('input', calcRisk);
+        document.getElementById('imp').addEventListener('input', calcRisk);
+    });
+</script>
+{% endblock %}

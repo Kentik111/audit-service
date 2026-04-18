@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clipboard-check"></i> Результаты аудитов безопасности</h2>
+    <span class="text-muted">Найдено: {{ pagination.total }} записей</span>
+</div>
+
+<!-- Блок фильтров -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">Критичность</label>
+                <select name="criticality" class="form-select">
+                    <option value="">Все</option>
+                    <option value="Low" {% if request.args.get('criticality') == 'Low' %}selected{% endif %}>Low</option>
+                    <option value="Medium" {% if request.args.get('criticality') == 'Medium' %}selected{% endif %}>Medium</option>
+                    <option value="High" {% if request.args.get('criticality') == 'High' %}selected{% endif %}>High</option>
+                    <option value="Critical" {% if request.args.get('criticality') == 'Critical' %}selected{% endif %}>Critical</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Статус</label>
+                <select name="status" class="form-select">
+                    <option value="">Все</option>
+                    <option value="Open" {% if request.args.get('status') == 'Open' %}selected{% endif %}>Open</option>
+                    <option value="In Progress" {% if request.args.get('status') == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Resolved" {% if request.args.get('status') == 'Resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="Closed" {% if request.args.get('status') == 'Closed' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Ответственный</label>
+                <select name="responsible" class="form-select">
+                    <option value="">Все</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}" {% if request.args.get('responsible')|int == u.id %}selected{% endif %}>{{ u.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Система</label>
+                <input type="text" name="system" class="form-control" placeholder="Поиск..." value="{{ request.args.get('system', '') }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Сортировка</label>
+                <select name="sort" class="form-select">
+                    <option value="detection_date" {% if request.args.get('sort') == 'detection_date' %}selected{% endif %}>По дате</option>
+                    <option value="risk_score" {% if request.args.get('sort') == 'risk_score' %}selected{% endif %}>По риску</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i> Применить
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary w-100 ms-2">
+                    <i class="bi bi-x-circle"></i> Сброс
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Таблица результатов -->
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Аудит</th>
+                <th>Система</th>
+                <th>Категория</th>
+                <th>Критичность</th>
+                <th>Статус</th>
+                <th>Риск-скор</th>
+                <th>Ответственный</th>
+                <th>Дата обнаружения</th>
+                <th>Срок</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td>{{ r.id }}</td>
+                <td>{{ r.audit_name }}</td>
+                <td>{{ r.system }}</td>
+                <td>{{ r.category }}</td>
+                <td>
+                    {% if r.criticality == 'Critical' %}
+                        <span class="badge bg-danger">Critical</span>
+                    {% elif r.criticality == 'High' %}
+                        <span class="badge bg-warning text-dark">High</span>
+                    {% elif r.criticality == 'Medium' %}
+                        <span class="badge bg-info">Medium</span>
+                    {% else %}
+                        <span class="badge bg-success">Low</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if r.status == 'Open' %}
+                        <span class="badge bg-secondary">Open</span>
+                    {% elif r.status == 'In Progress' %}
+                        <span class="badge bg-primary">In Progress</span>
+                    {% elif r.status == 'Resolved' %}
+                        <span class="badge bg-success">Resolved</span>
+                    {% else %}
+                        <span class="badge bg-dark">Closed</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-{{ 'danger' if r.risk_score >= 70 else 'warning' if r.risk_score >= 40 else 'success' }}" 
+                             style="width: {{ r.risk_score }}%;">
+                            {{ r.risk_score }}
+                        </div>
+                    </div>
+                </td>
+                <td>{{ r.responsible.full_name if r.responsible }}</td>
+                <td>{{ r.detection_date.strftime('%d.%m.%Y') if r.detection_date }}</td>
+                <td>
+                    {% if r.due_date %}
+                        {% set days_left = (r.due_date - today).days %}
+                        <span class="{{ 'text-danger fw-bold' if days_left < 0 and r.status not in ['Resolved', 'Closed'] else '' }}">
+                            {{ r.due_date.strftime('%d.%m.%Y') }}
+                        </span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('card', id=r.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> Просмотр
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="11" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i><br>
+                    Нет результатов, соответствующих фильтрам
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Пагинация -->
+{% if pagination.pages > 1 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        <!-- Кнопка "Назад" -->
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            {% if pagination.has_prev %}
+            <a class="page-link" href="{{ url_for('index', page=pagination.prev_num, **args_without_page) }}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            {% else %}
+            <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+            {% endif %}
+        </li>
+        
+        <!-- Номера страниц -->
+        {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('index', page=p, **args_without_page) }}">{{ p }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+        
+        <!-- Кнопка "Вперед" -->
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            {% if pagination.has_next %}
+            <a class="page-link" href="{{ url_for('index', page=pagination.next_num, **args_without_page) }}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            {% else %}
+            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+            {% endif %}
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

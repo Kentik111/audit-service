@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-file-text"></i> 
+        Результат аудита #{{ result.id }}
+    </h2>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> К списку
+    </a>
+</div>
+
+<div class="row">
+    <!-- Левая колонка - основная информация -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Основная информация</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="200">Название аудита:</th>
+                        <td>{{ result.audit_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Система / модуль:</th>
+                        <td>{{ result.system }}</td>
+                    </tr>
+                    <tr>
+                        <th>Категория:</th>
+                        <td>{{ result.category }}</td>
+                    </tr>
+                    <tr>
+                        <th>Описание:</th>
+                        <td>{{ result.description }}</td>
+                    </tr>
+                    <tr>
+                        <th>Критичность:</th>
+                        <td>
+                            <form method="POST" class="d-inline" id="criticalityForm">
+                                {% if current_user.role in ['L3', 'Admin'] %}
+                                <select name="criticality" class="form-select form-select-sm d-inline w-auto" onchange="this.form.submit()">
+                                    <option value="Low" {% if result.criticality == 'Low' %}selected{% endif %}>Low</option>
+                                    <option value="Medium" {% if result.criticality == 'Medium' %}selected{% endif %}>Medium</option>
+                                    <option value="High" {% if result.criticality == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Critical" {% if result.criticality == 'Critical' %}selected{% endif %}>Critical</option>
+                                </select>
+                                {% else %}
+                                <span class="badge bg-{{ 'danger' if result.criticality == 'Critical' else 'warning' if result.criticality == 'High' else 'info' }}">
+                                    {{ result.criticality }}
+                                </span>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Статус:</th>
+                        <td>
+                            <form method="POST" class="d-inline" id="statusForm">
+                                {% if current_user.role in ['L2', 'L3', 'Admin'] %}
+                                <select name="status" class="form-select form-select-sm d-inline w-auto" onchange="this.form.submit()">
+                                    <option value="Open" {% if result.status == 'Open' %}selected{% endif %}>Open</option>
+                                    <option value="In Progress" {% if result.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Resolved" {% if result.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                                    <option value="Closed" {% if result.status == 'Closed' %}selected{% endif %}>Closed</option>
+                                </select>
+                                {% else %}
+                                <span class="badge bg-primary">{{ result.status }}</span>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Риск-скор:</th>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-3" style="height: 20px;">
+                                    <div class="progress-bar bg-{{ 'danger' if result.risk_score >= 70 else 'warning' if result.risk_score >= 40 else 'success' }}" 
+                                         style="width: {{ result.risk_score }}%;">
+                                        {{ result.risk_score }}
+                                    </div>
+                                </div>
+                                <span>/ 100</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Ответственный:</th>
+                        <td>{{ result.responsible.full_name if result.responsible }}</td>
+                    </tr>
+                    <tr>
+                        <th>Дата обнаружения:</th>
+                        <td>{{ result.detection_date.strftime('%d.%m.%Y') if result.detection_date }}</td>
+                    </tr>
+                    <tr>
+                        <th>Срок устранения:</th>
+                        <td>
+        		    {% if result.due_date %}
+           			 {% set days_left = (result.due_date - today).days if today else 0 %}
+           			 <span class="{{ 'text-danger fw-bold' if days_left < 0 and result.status not in ['Resolved', 'Closed'] else '' }}">
+               				{{ result.due_date.strftime('%d.%m.%Y') }}
+               			 	{% if days_left < 0 and result.status not in ['Resolved', 'Closed'] %}
+                    				(ПРОСРОЧЕНО)
+                			{% endif %}
+            				</span>
+        			{% else %}
+            				Не указан
+        			{% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Комментарии -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-chat"></i> Комментарии и история</h5>
+            </div>
+            <div class="card-body">
+                {% if result.comments %}
+                    <div class="border rounded p-3 bg-light mb-3" style="max-height: 300px; overflow-y: auto;">
+                        <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ result.comments }}</pre>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Комментариев пока нет</p>
+                {% endif %}
+                
+                {% if current_user.role in ['L2', 'L3', 'Admin'] %}
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Добавить комментарий</label>
+                        <textarea name="comment" class="form-control" rows="3" placeholder="Введите ваш комментарий..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send"></i> Отправить
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Правая колонка - дополнительные поля -->
+    <div class="col-md-4">
+        {% if current_user.role in ['L3', 'Admin'] %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Финальное решение (L3+)</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Решение</label>
+                        <select name="final_decision" class="form-select" onchange="this.form.submit()">
+                            <option value="">— Не выбрано —</option>
+                            <option value="Принято" {% if result.final_decision == 'Принято' %}selected{% endif %}>Принято</option>
+                            <option value="Отклонено" {% if result.final_decision == 'Отклонено' %}selected{% endif %}>Отклонено</option>
+                            <option value="Требует доработки" {% if result.final_decision == 'Требует доработки' %}selected{% endif %}>Требует доработки</option>
+                        </select>
+                    </div>
+                </form>
+                {% if result.final_decision %}
+                <div class="alert alert-success">
+                    <strong>Текущее решение:</strong> {{ result.final_decision }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Установка today для сравнения дат
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+</script>
+{% endblock %}

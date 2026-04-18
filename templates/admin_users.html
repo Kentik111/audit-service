@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people-fill"></i> Управление пользователями</h2>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="bi bi-person-plus"></i> Добавить пользователя
+    </button>
+</div>
+
+<!-- Таблица пользователей -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Логин</th>
+                        <th>Полное имя</th>
+                        <th>Роль</th>
+                        <th>Дата регистрации</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td><code>{{ u.username }}</code></td>
+                        <td>{{ u.full_name }}</td>
+                        <td>
+                            {% if u.role == 'Admin' %}
+                                <span class="badge bg-danger">Admin</span>
+                            {% elif u.role == 'L3' %}
+                                <span class="badge bg-warning text-dark">Analyst L3</span>
+                            {% elif u.role == 'L2' %}
+                                <span class="badge bg-info">Analyst L2</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Analyst L1</span>
+                            {% endif %}
+                        </td>
+                        <td>—</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#editUserModal{{ u.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            {% if u.id != current_user.id %}
+                            <a href="{{ url_for('admin_delete_user', user_id=u.id) }}" 
+                               class="btn btn-sm btn-outline-danger"
+                               onclick="return confirm('Удалить пользователя {{ u.username }}?')">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                            {% else %}
+                            <button class="btn btn-sm btn-outline-secondary" disabled title="Нельзя удалить себя">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно: Добавление пользователя -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin_add_user') }}">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-person-plus"></i> Новый пользователь</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Логин *</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пароль *</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Полное имя *</label>
+                        <input type="text" name="full_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Роль *</label>
+                        <select name="role" class="form-select" required>
+                            <option value="L1">Analyst L1</option>
+                            <option value="L2">Analyst L2</option>
+                            <option value="L3">Analyst L3</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="collapse">Отмена</button>
+                    <button type="submit" class="btn btn-success">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальные окна: Редактирование пользователей -->
+{% for u in users %}
+<div class="modal fade" id="editUserModal{{ u.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin_edit_user', user_id=u.id) }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Редактировать: {{ u.username }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Полное имя</label>
+                        <input type="text" name="full_name" class="form-control" value="{{ u.full_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Роль</label>
+                        <select name="role" class="form-select" required>
+                            <option value="L1" {% if u.role == 'L1' %}selected{% endif %}>Analyst L1</option>
+                            <option value="L2" {% if u.role == 'L2' %}selected{% endif %}>Analyst L2</option>
+                            <option value="L3" {% if u.role == 'L3' %}selected{% endif %}>Analyst L3</option>
+                            <option value="Admin" {% if u.role == 'Admin' %}selected{% endif %}>Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Новый пароль (оставьте пустым, если не менять)</label>
+                        <input type="password" name="password" class="form-control" placeholder="••••••••">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
